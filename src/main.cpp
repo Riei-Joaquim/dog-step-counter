@@ -207,10 +207,10 @@ void step_counter() {
   sample_old = sample_new;
   switch (active_axis) {
     case 0:
-      Serial.println("3");
+      // Serial.println("3");
       if (accel_x_avg - sample_old > step_size || accel_x_avg - sample_old < -step_size) {
         sample_new = accel_x_avg;
-        Serial.println("3.1");
+        // Serial.println("3.1");
         if (sample_old > dy_thres_accel_x && sample_new < dy_thres_accel_x) {
           Serial.println("3.2");
           step_count++;
@@ -252,9 +252,9 @@ void step_counter() {
 }
 
 void loop() {
-  if (mpu.getMotionInterruptStatus()) {
-    step_counter();
-    Serial.println("Calling step Counter");
-  }
-  // vTaskDelay(10 / portTICK_PERIOD_MS);
+  // if (mpu.getMotionInterruptStatus()) {
+  step_counter();
+  // Serial.println("Calling step Counter");
+  // }
+  vTaskDelay(10 / portTICK_PERIOD_MS);
 }
