@@ -1,5 +1,6 @@
 #include "mpu6050Uitls.h"
 #include "esp_timer.h"
+#include "communication.h"
 
 float accel_bias[3] = {0, 0, 0};
 float gyro_bias[3] = {0, 0, 0};
@@ -28,7 +29,7 @@ int max_curr_accel_x, max_curr_accel_y, max_curr_accel_z;
 int dy_thres_accel_x = 0, dy_thres_accel_y = 0, dy_thres_accel_z = 0;
 int dy_chan_accel_x, dy_chan_accel_y, dy_chan_accel_z;
 int sample_new = 0, sample_old = 0;
-int step_size = 200, step_count = 0;
+int step_size = 200;
 int active_axis = 0, interval = 500000;
 int step_changed = 0;
 
@@ -74,6 +75,7 @@ void setup(void) {
 
   Serial.println("");
   delay(100);
+  commSetup();
 }
 
 void step_counter() {
