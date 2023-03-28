@@ -7,8 +7,8 @@
 
 #include <time.h>
 
-const char* ssid = "TP-Link_A885";
-const char* password = "70901573";
+const char* ssid = "Pensionato";
+const char* password = "492306pp";
 
 // JSON data buffer
 StaticJsonDocument<250> jsonDocument;
@@ -22,15 +22,15 @@ uint32_t step_count = 0;
 
 inline void create_json(uint32_t stepsAmount) {
   // Create and populate date for request
-  struct tm current_ts;
-  getLocalTime(&current_ts);
-  char ts_char[50] = {0};
-  strftime(ts_char, sizeof(ts_char), "%Y-%m-%d %H:%M:%S", &current_ts);
+  // struct tm current_ts;
+  // getLocalTime(&current_ts);
+  // char ts_char[50] = {0};
+  // strftime(ts_char, sizeof(ts_char), "%Y-%m-%d %H:%M:%S", &current_ts);
 
   // Clear and fill json
   jsonDocument.clear();
   jsonDocument["steps"] = stepsAmount;
-  jsonDocument["requestDate"] = ts_char;
+  jsonDocument["requestDate"] = esp_timer_get_time();
   serializeJson(jsonDocument, buffer);
 }
 
@@ -44,7 +44,6 @@ inline void getPedometer() {
 
 //////////////// WIFI CONFIGURATION ////////////////
 inline void setup_wifi() {
-  Serial.begin(115200);
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -65,7 +64,7 @@ inline void setup_routing() {
 
   // Setup endpoints
   server.on("/pedometer", HTTP_GET, getPedometer);
-
+  server.enableDelay(false);
   // start server
   server.begin();
 
@@ -73,30 +72,12 @@ inline void setup_routing() {
 }
 //////////////// API CONFIGURATION ////////////////
 
-//////////////// SENSOR CONFIGURATION ////////////////
-// TODO: unification
-inline void handleClientTask(void* parameter) {
-  while (true) {
-    // Handle upcoming requests in the API
-    server.handleClient();
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-  }
-}
-
-inline void setup_task() {
-  xTaskCreate(handleClientTask,   // call method
-              "Read sensor data", // task name
-              1000,               // size (bytes)
-              NULL,               // params
-              1,                  // priority
-              NULL                // task handler
-  );
-}
-//////////////// SENSOR CONFIGURATION ////////////////
-
 inline void commSetup() {
   setup_wifi();
   setup_routing();
-  setup_task();
+}
+
+inline void handleLoop() {
+  server.handleClient();
 }
 #endif /* DOGSTEP_COMMUNICATION_H */

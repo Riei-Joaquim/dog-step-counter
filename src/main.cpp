@@ -7,6 +7,7 @@ float gyro_bias[3] = {0, 0, 0};
 
 float quart[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 float delta_t = 0.0f;
+// int slotTime = 0;
 #define AVG_BUFF_SIZE 20
 
 sensors_event_t a, g, temp;
@@ -148,7 +149,6 @@ void step_counter() {
   now_time = esp_timer_get_time();
 
   if (now_time - prev_time >= interval) {
-    Serial.println("1");
     prev_time = now_time;
 
     min_curr_accel_x = min_reg_accel_x;
@@ -259,4 +259,8 @@ void loop() {
   // Serial.println("Calling step Counter");
   // }
   vTaskDelay(10 / portTICK_PERIOD_MS);
+  // if (slotTime == 0) {
+  handleLoop();
+  //}
+  // slotTime = (slotTime + 1) % 20;
 }
