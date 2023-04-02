@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include <BluetoothSerial.h>
 
 #include <time.h>
 
@@ -14,8 +15,15 @@ const char* password = "492306pp";
 StaticJsonDocument<250> jsonDocument;
 char buffer[250];
 
+// Buffer for bluetooth data
+String bt_text_handler = "";
+StaticJsonDocument<250> bt_json_doc;
+
 // Web server
 WebServer server(80);
+
+// Bluetooth
+BluetoothSerial SerialBT;
 
 // global counter
 uint32_t step_count = 0;
@@ -56,6 +64,41 @@ inline void setup_wifi() {
 }
 //////////////// WIFI CONFIGURATION ////////////////
 
+//////////////// BLUETOOTH CONFIGURATION ////////////////
+inline void setup_bt() {
+  SerialBT.begin("dog_step_counter_bt");
+}
+
+inline bool read_from_bt() {
+  bool availableData = SerialBT.available() > 0;
+  if (availableData) {
+    bt_text_handler = SerialBT.readStringUntil('\n');
+    bt_text_handler.remove(bt_text_handler.length() - 1, 1);
+  }
+
+  return availableData;
+}
+
+inline bool parse_from_bt() {
+  DeserializationError error = deserializeJson(bt_json_doc, bt_text_handler);
+
+  if (error)
+    return false;
+  else
+    return true;
+}
+
+inline void configure_bt_from_payload() {
+  if (read_from_bt()) {
+    if (parse_from_bt()) {
+      if (bt_json_doc.containsKey("wifi_name") && bt_json_doc.containsKey("wifi_pass")) {
+        /// TODO: setup wifi and connect
+      }
+    }
+  }
+}
+//////////////// BLUETOOTH CONFIGURATION ////////////////
+
 //////////////// API CONFIGURATION ////////////////
 // setup API resources
 inline void setup_routing() {
@@ -74,10 +117,12 @@ inline void setup_routing() {
 
 inline void commSetup() {
   setup_wifi();
+  setup_bt();
   setup_routing();
 }
 
 inline void handleLoop() {
   server.handleClient();
+  configure_bt_from_payload();
 }
-#endif /* DOGSTEP_COMMUNICATION_H */
+#endif // DOGSTEP_COMMUNICATION_H
