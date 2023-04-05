@@ -7,7 +7,7 @@ float gyro_bias[3] = {0, 0, 0};
 
 float quart[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 float delta_t = 0.0f;
-// int slotTime = 0;
+int slotTime = 0;
 #define AVG_BUFF_SIZE 20
 
 sensors_event_t a, g, temp;
@@ -34,10 +34,57 @@ int step_size = 200;
 int active_axis = 0, interval = 500000;
 int step_changed = 0;
 
+#define PIN_LED_YELLOW 4
+#define PIN_LED_RED    2
+
+bool ledReadOn = true;
+bool bluetoothConnected = true;
+
+#define MIN_BATTERY_VOLTAGE 0
+#define PIN_READ_BATTERY    35
+
+#define RESISTOR_R1 17e3
+#define RESISTOR_R2 10e3
+
+float mapping(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+float readBattery() {
+  int potValue = analogRead(PIN_READ_BATTERY);
+  float vIn = mapping(potValue, 0, 4095, 0, 3.3);
+  Serial.println(potValue);
+  return (vIn * (RESISTOR_R1 + RESISTOR_R2)) / (RESISTOR_R2);
+}
+
 void setup(void) {
+
+  // battery check
+  while (readBattery() < MIN_BATTERY_VOLTAGE) {
+    ledReadOn = true;
+    digitalWrite(PIN_LED_YELLOW, LOW); // turn the LED yellow Off
+    digitalWrite(PIN_LED_RED, HIGH);   // turn the LED on
+  }
+
+  digitalWrite(PIN_LED_YELLOW, HIGH); // turn the LED on
+  digitalWrite(PIN_LED_RED, HIGH);    // turn the LED on
+
+  // Bluetooth receive config Information
+  while (bluetoothConnected) {
+    delay(1000);
+    digitalWrite(PIN_LED_RED, LOW); // turn the LED off
+    break;
+  }
+
+  // config WiFi
+  commSetup();
+
+  digitalWrite(PIN_LED_YELLOW, LOW); // turn the LED off
+
   Serial.begin(115200);
-  while (!Serial)
+  while (!Serial) {
     delay(10); // will pause Zero, Leonardo, etc until serial console opens
+  }
 
   // Try to initialize!
   if (!mpu.begin()) {
@@ -66,7 +113,7 @@ void setup(void) {
   Serial.print(gyro_bias[2]);
   Serial.println("");
 
-  // setupt motion detection
+  // setup motion detection
   mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
   mpu.setMotionDetectionThreshold(1);
   mpu.setMotionDetectionDuration(1);
@@ -74,9 +121,7 @@ void setup(void) {
   mpu.setInterruptPinPolarity(true);
   mpu.setMotionInterrupt(true);
 
-  Serial.println("");
   delay(100);
-  commSetup();
 }
 
 void step_counter() {
@@ -262,5 +307,24 @@ void loop() {
   // if (slotTime == 0) {
   handleLoop();
   //}
-  // slotTime = (slotTime + 1) % 20;
+
+  Serial.println(readBattery());
+  if (slotTime == 0) {
+    digitalWrite(PIN_LED_YELLOW, HIGH); // turn the LED on
+  } else if (slotTime == 1) {
+    digitalWrite(PIN_LED_YELLOW, LOW); // turn the LED on
+  }
+
+  if (ledReadOn) {
+    ledReadOn = false;
+    digitalWrite(PIN_LED_RED, LOW); // turn the LED red Off
+  }
+
+  slotTime = (slotTime + 1) % 20;
+
+  while (readBattery() < MIN_BATTERY_VOLTAGE) {
+    ledReadOn = true;
+    digitalWrite(PIN_LED_YELLOW, LOW); // turn the LED red Off
+    digitalWrite(PIN_LED_RED, HIGH);   // turn the LED on
+  }
 }
