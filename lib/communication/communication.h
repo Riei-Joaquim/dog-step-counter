@@ -10,6 +10,20 @@
 const char* ssid = "Pensionato";
 const char* password = "492306pp";
 
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 0;
+const int daylightOffset_sec = -3600 * 3;
+char timeStringBuff[50];
+
+void getCurrentTimeStamp() {
+  struct tm timeInfo;
+  if (!getLocalTime(&timeInfo)) {
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeInfo);
+}
+
 // JSON data buffer
 StaticJsonDocument<250> jsonDocument;
 char buffer[250];
@@ -17,20 +31,23 @@ char buffer[250];
 // Web server
 WebServer server(80);
 
+// ip static
+// Set your Static IP address
+IPAddress local_IP(192, 168, 1, 184);
+// Set your Gateway IP address
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 0, 0);
+
 // global counter
 uint32_t step_count = 0;
 
 inline void create_json(uint32_t stepsAmount) {
-  // Create and populate date for request
-  // struct tm current_ts;
-  // getLocalTime(&current_ts);
-  // char ts_char[50] = {0};
-  // strftime(ts_char, sizeof(ts_char), "%Y-%m-%d %H:%M:%S", &current_ts);
+  getCurrentTimeStamp();
 
   // Clear and fill json
   jsonDocument.clear();
   jsonDocument["steps"] = stepsAmount;
-  jsonDocument["requestDate"] = esp_timer_get_time();
+  jsonDocument["requestDate"] = timeStringBuff;
   serializeJson(jsonDocument, buffer);
 }
 
@@ -46,6 +63,10 @@ inline void getPedometer() {
 inline void setup_wifi() {
   WiFi.begin(ssid, password);
 
+  // Configures static IP address
+  // if (!WiFi.config(local_IP, gateway, subnet)) {
+  //  Serial.println("STA Failed to configure");
+  //}
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.println("Connecting to WiFi..");
@@ -53,6 +74,9 @@ inline void setup_wifi() {
   Serial.println("Connected to the WiFi network");
   Serial.println("IP Address: ");
   Serial.println(WiFi.localIP());
+
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  getCurrentTimeStamp();
 }
 //////////////// WIFI CONFIGURATION ////////////////
 

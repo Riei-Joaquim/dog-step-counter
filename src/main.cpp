@@ -34,17 +34,18 @@ int step_size = 200;
 int active_axis = 0, interval = 500000;
 int step_changed = 0;
 
-#define PIN_LED_YELLOW 4
-#define PIN_LED_RED    2
+#define PIN_LED_YELLOW   4
+#define PIN_LED_RED      2
+#define PIN_READ_BATTERY 34
+
+#define MIN_BATTERY_VOLTAGE 7.5
 
 bool ledReadOn = true;
 bool bluetoothConnected = true;
+float last_battery = MIN_BATTERY_VOLTAGE;
 
-#define MIN_BATTERY_VOLTAGE 0
-#define PIN_READ_BATTERY    35
-
-#define RESISTOR_R1 17e3
-#define RESISTOR_R2 10e3
+#define RESISTOR_R1 17800
+#define RESISTOR_R2 9640
 
 float mapping(float x, float in_min, float in_max, float out_min, float out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -53,12 +54,15 @@ float mapping(float x, float in_min, float in_max, float out_min, float out_max)
 float readBattery() {
   int potValue = analogRead(PIN_READ_BATTERY);
   float vIn = mapping(potValue, 0, 4095, 0, 3.3);
-  Serial.println(potValue);
-  return (vIn * (RESISTOR_R1 + RESISTOR_R2)) / (RESISTOR_R2);
+  last_battery = (last_battery + (vIn * (RESISTOR_R1 + RESISTOR_R2)) / (RESISTOR_R2)) / 2;
+  return last_battery;
 }
 
 void setup(void) {
-
+  last_battery = readBattery();
+  pinMode(PIN_LED_YELLOW, OUTPUT);
+  pinMode(PIN_LED_RED, OUTPUT);
+  pinMode(PIN_READ_BATTERY, ANALOG);
   // battery check
   while (readBattery() < MIN_BATTERY_VOLTAGE) {
     ledReadOn = true;
@@ -68,6 +72,11 @@ void setup(void) {
 
   digitalWrite(PIN_LED_YELLOW, HIGH); // turn the LED on
   digitalWrite(PIN_LED_RED, HIGH);    // turn the LED on
+
+  Serial.begin(115200);
+  while (!Serial) {
+    delay(10); // will pause Zero, Leonardo, etc until serial console opens
+  }
 
   // Bluetooth receive config Information
   while (bluetoothConnected) {
@@ -80,11 +89,6 @@ void setup(void) {
   commSetup();
 
   digitalWrite(PIN_LED_YELLOW, LOW); // turn the LED off
-
-  Serial.begin(115200);
-  while (!Serial) {
-    delay(10); // will pause Zero, Leonardo, etc until serial console opens
-  }
 
   // Try to initialize!
   if (!mpu.begin()) {
@@ -236,7 +240,6 @@ void step_counter() {
     }
 
   } else if (now_time < 500) {
-    Serial.println("2");
     if (min_reg_accel_x > accel_x_avg)
       min_reg_accel_x = accel_x_avg;
     if (max_reg_accel_x < accel_x_avg)
@@ -259,31 +262,24 @@ void step_counter() {
         sample_new = accel_x_avg;
         // Serial.println("3.1");
         if (sample_old > dy_thres_accel_x && sample_new < dy_thres_accel_x) {
-          Serial.println("3.2");
           step_count++;
           step_changed = 1;
         }
       }
       break;
     case 1:
-      Serial.println("4");
       if (accel_y_avg - sample_old > step_size || accel_y_avg - sample_old < -step_size) {
         sample_new = accel_y_avg;
-        Serial.println("4.1");
         if (sample_old > dy_thres_accel_y && sample_new < dy_thres_accel_y) {
-          Serial.println("4.2");
           step_count++;
           step_changed = 1;
         }
       }
       break;
     case 2:
-      Serial.println("5");
       if (accel_z_avg - sample_old > step_size || accel_z_avg - sample_old < -step_size) {
         sample_new = accel_z_avg;
-        Serial.println("5.1");
         if (sample_old > dy_thres_accel_z && sample_new < dy_thres_accel_z) {
-          Serial.println("5.2");
           step_count++;
           step_changed = 1;
         }
@@ -308,7 +304,6 @@ void loop() {
   handleLoop();
   //}
 
-  Serial.println(readBattery());
   if (slotTime == 0) {
     digitalWrite(PIN_LED_YELLOW, HIGH); // turn the LED on
   } else if (slotTime == 1) {
@@ -320,7 +315,7 @@ void loop() {
     digitalWrite(PIN_LED_RED, LOW); // turn the LED red Off
   }
 
-  slotTime = (slotTime + 1) % 20;
+  slotTime = (slotTime + 1) % 100;
 
   while (readBattery() < MIN_BATTERY_VOLTAGE) {
     ledReadOn = true;
