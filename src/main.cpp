@@ -63,20 +63,22 @@ void setup(void) {
   pinMode(PIN_LED_YELLOW, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT);
   pinMode(PIN_READ_BATTERY, ANALOG);
+
+  Serial.begin(115200);
+  while (!Serial) {
+    delay(10); // will pause Zero, Leonardo, etc until serial console opens
+  }
+
   // battery check
   while (readBattery() < MIN_BATTERY_VOLTAGE) {
     ledReadOn = true;
+    Serial.println("Low battery");
     digitalWrite(PIN_LED_YELLOW, LOW); // turn the LED yellow Off
     digitalWrite(PIN_LED_RED, HIGH);   // turn the LED on
   }
 
   digitalWrite(PIN_LED_YELLOW, HIGH); // turn the LED on
   digitalWrite(PIN_LED_RED, HIGH);    // turn the LED on
-
-  Serial.begin(115200);
-  while (!Serial) {
-    delay(10); // will pause Zero, Leonardo, etc until serial console opens
-  }
 
   // Bluetooth receive config Information
   while (bluetoothConnected) {
