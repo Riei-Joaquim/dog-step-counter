@@ -78,8 +78,7 @@ void echo_to_server() {
     Serial.println("wait for server ...");
     // send hello world to server
     udpBroadcast.broadcastTo("hello server|199", sendUdpPort);
-    delay(500);
-
+    vTaskDelay(400 / portTICK_PERIOD_MS);
     if (serverDiscovered) {
       break;
     }
