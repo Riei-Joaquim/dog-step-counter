@@ -7,7 +7,6 @@ float gyro_bias[3] = {0, 0, 0};
 
 float quart[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 float delta_t = 0.0f;
-int slotTime = 0;
 #define AVG_BUFF_SIZE 20
 
 sensors_event_t a, g, temp;
@@ -52,6 +51,7 @@ float mapping(float x, float in_min, float in_max, float out_min, float out_max)
 }
 
 float readBattery() {
+  // return 8;
   int potValue = analogRead(PIN_READ_BATTERY);
   float vIn = mapping(potValue, 0, 4095, 0, 3.3);
   last_battery = (last_battery + (vIn * (RESISTOR_R1 + RESISTOR_R2)) / (RESISTOR_R2)) / 2;
@@ -302,13 +302,10 @@ void loop() {
   // Serial.println("Calling step Counter");
   // }
   vTaskDelay(10 / portTICK_PERIOD_MS);
-  // if (slotTime == 0) {
-  handleLoop();
-  //}
 
-  if (slotTime == 0) {
+  if (handleLoop()) {
     digitalWrite(PIN_LED_YELLOW, HIGH); // turn the LED on
-  } else if (slotTime == 1) {
+  } else {
     digitalWrite(PIN_LED_YELLOW, LOW); // turn the LED on
   }
 
@@ -316,8 +313,6 @@ void loop() {
     ledReadOn = false;
     digitalWrite(PIN_LED_RED, LOW); // turn the LED red Off
   }
-
-  slotTime = (slotTime + 1) % 100;
 
   while (readBattery() < MIN_BATTERY_VOLTAGE) {
     ledReadOn = true;

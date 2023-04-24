@@ -3,6 +3,7 @@
 
 #include <WiFi.h>
 #include <WebServer.h>
+#include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <AsyncUDP.h>
 #include <WiFiUdp.h>
@@ -10,23 +11,29 @@
 
 const char* ssid = "Pensionato";
 const char* password = "492306pp";
-const char* id_token = "199";
+const char* id_token = "1fcbaf0d-590b-4440-b4c1-e3c665eafb3e";
 
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -3600 * 3;
 const int daylightOffset_sec = 0;
 char timeStringBuff[50];
 
-void getCurrentTimeStamp() {
+const char* serverName = "http://www.google.com";
+
+bool getCurrentTimeStamp() {
   struct tm timeInfo;
+  bool getTimer = false;
   for (int i = 0; i < 5; i++) {
     if (getLocalTime(&timeInfo)) {
+      getTimer = true;
       break;
     } else {
       Serial.println("Failed to obtain time");
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     }
   }
   strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeInfo);
+  return getTimer;
 }
 
 // JSON data buffer
@@ -34,15 +41,11 @@ StaticJsonDocument<250> jsonDocument;
 char buffer[250];
 
 // Web server
-WebServer server(80);
 
 // global counter
 uint32_t step_count = 0;
 
 inline void create_json(uint32_t stepsAmount) {
-  step_count = 0;
-  getCurrentTimeStamp();
-
   // Clear and fill json
   jsonDocument.clear();
   jsonDocument["steps"] = stepsAmount;
@@ -53,36 +56,49 @@ inline void create_json(uint32_t stepsAmount) {
 
 //////////////// API ENDPOINTS HANDLERS ////////////////
 inline void getPedometer() {
-  Serial.println("Get pedometer called");
+
   create_json(step_count);
-  server.send(200, "application/json", buffer);
+  // server.send(200, "application/json", buffer);
 }
 //////////////// API ENDPOINTS HANDLERS ////////////////
 
 //////////////// WIFI CONFIGURATION ////////////////
 
-// create UDP instance
-AsyncUDP udpBroadcast;
+unsigned long lastTime = 0;
+unsigned long timerDelay = 10000;
+HTTPClient http;
+WiFiClient client;
 
-// here is broadcast address
-const char* udpAddress = "255.255.255.255";
-const int receiveUdpPort = 10211;
-const int sendUdpPort = 2255;
-bool serverDiscovered = false;
-String expectedMessageFromServer = "hello collar from server 101";
-uint8_t receiveBuffer[30] = "";
+inline bool send_data_to_server() {
+  bool ret = false;
+  if ((millis() - lastTime) >= timerDelay) {
+    // Check WiFi connection status
+    if (WiFi.status() == WL_CONNECTED && getCurrentTimeStamp()) {
 
-void echo_to_server() {
+      // If you need an HTTP request with a content type: application/json, use the following:
+      // http.addHeader("Content-Type", "application/json");
+      int current_steps = step_count;
+      create_json(step_count);
+      int httpResponseCode = http.GET(); //(buffer);
 
-  while (true) {
-    Serial.println("wait for server ...");
-    // send hello world to server
-    udpBroadcast.broadcastTo("hello server|199", sendUdpPort);
-    vTaskDelay(400 / portTICK_PERIOD_MS);
-    if (serverDiscovered) {
-      break;
+      Serial.println("Post pedometer");
+
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode);
+      if (httpResponseCode == 200) {
+        Serial.println("Post successful");
+        step_count = step_count - current_steps;
+        ret = true;
+      } else {
+        ret = false;
+      }
+    } else {
+      Serial.println("WiFi Disconnected");
+      ret = false;
     }
+    lastTime = millis();
   }
+  return ret;
 }
 
 inline void setup_wifi() {
@@ -99,46 +115,18 @@ inline void setup_wifi() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   getCurrentTimeStamp();
 
-  // echo to search server
-  // This initializes udp and transfer buffer
-  for (int i = 0; i < 5; i++) {
-    if (udpBroadcast.listen(receiveUdpPort)) {
-      Serial.println("listening... ");
-      udpBroadcast.onPacket([](AsyncUDPPacket packet) {
-        String data(reinterpret_cast<char*>(packet.data()));
-        serverDiscovered = (data == expectedMessageFromServer);
-      });
-      break;
-    }
-  }
-
-  echo_to_server();
+  // Your Domain name with URL path or IP address with path
+  http.begin(client, serverName);
 }
 //////////////// WIFI CONFIGURATION ////////////////
 
 //////////////// API CONFIGURATION ////////////////
-// setup API resources
-inline void setup_routing() {
-
-  // Debug
-  Serial.println("Starting routing");
-
-  // Setup endpoints
-  server.on("/pedometer", HTTP_GET, getPedometer);
-  server.enableDelay(false);
-  // start server
-  server.begin();
-
-  Serial.println("Routing started.");
-}
-//////////////// API CONFIGURATION ////////////////
 
 inline void commSetup() {
   setup_wifi();
-  setup_routing();
 }
 
-inline void handleLoop() {
-  server.handleClient();
+inline bool handleLoop() {
+  return send_data_to_server();
 }
 #endif /* DOGSTEP_COMMUNICATION_H */
