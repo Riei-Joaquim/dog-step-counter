@@ -1,3 +1,6 @@
 # dog-step-counter
 
-Sistema de contagem de passos de cachorros para monitoramento de atividades física e disposição do pet, baseado nas acelerações medidas por um IMU 6050, transmitidos via https através da rede wi-fi com a ESP 32 para a nuvem.
+Dog step counting system for monitoring physical activity and pet disposition, based on accelerations measured by an IMU 6050, transmitted via https through the wi-fi network with the ESP 32 to the cloud.
+
+
+![diagram](/docs/architecture.jpeg)
